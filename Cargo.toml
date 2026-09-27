@@ -1,0 +1,3 @@
+[workspace]
+resolver = "3"
+members = ["crates/lap2", "app/lap2-gui/src-tauri"]
