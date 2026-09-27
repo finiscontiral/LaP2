@@ -3,6 +3,7 @@
     "language": "en",
     "words": [
         "nalgebra",
-        "satkit"
+        "satkit",
+        "thiserror"
     ]
 }

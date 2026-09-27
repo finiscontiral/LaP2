@@ -6,4 +6,5 @@ edition = "2024"
 [dependencies]
 nalgebra = "0.35.0"
 satkit = "0.24.0"
+thiserror = "2.0.21"
 uom = "0.38.0"
