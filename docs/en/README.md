@@ -1,7 +1,6 @@
 # LaP2
 
-## Documentation
-[**English**](./docs/en/README.md) | [日本語](./docs/jp/README.md)
+**English** | [日本語](./docs/jp/README.md)
 
 LaP2 stands for `La plus program`.
 
