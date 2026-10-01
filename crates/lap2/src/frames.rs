@@ -132,3 +132,44 @@ impl Frame {
         })
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    mod lla {
+        use super::*;
+        use uom::si::length::meter;
+
+        #[test]
+        fn test_valid() {
+            let lat = Angle::new::<degree>(35.0);
+            let lon = Angle::new::<degree>(135.0);
+            let alt = Length::new::<meter>(10.0);
+
+            let result = LlaPosition::try_new(lat, lon, alt);
+            assert!(result.is_ok(), "Valid LLA position should succeed");
+        }
+
+        #[test]
+        fn test_boundary() {
+            let lat_north = Angle::new::<degree>(90.0);
+            let lat_south = Angle::new::<degree>(-90.0);
+            let lon = Angle::new::<degree>(0.0);
+            let alt = Length::new::<meter>(0.0);
+
+            assert!(LlaPosition::try_new(lat_north, lon, alt).is_ok());
+            assert!(LlaPosition::try_new(lat_south, lon, alt).is_ok());
+        }
+
+        #[test]
+        fn test_invalid_latitude() {
+            let lat_invalid = Angle::new::<degree>(91.0);
+            let lon = Angle::new::<degree>(0.0);
+            let alt = Length::new::<meter>(0.0);
+
+            let result = LlaPosition::try_new(lat_invalid, lon, alt);
+            assert!(result.is_err(), "Latitude > 90 should fail");
+        }
+    }
+}
