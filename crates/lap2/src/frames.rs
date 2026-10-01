@@ -1,3 +1,5 @@
+use std::fmt;
+
 use nalgebra::Vector3;
 use satkit::Instant;
 use uom::si::{
@@ -5,11 +7,23 @@ use uom::si::{
     f64::{Angle, Length},
 };
 
+use crate::{Error, error::FrameError};
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FrameType {
     Gcef,
     Itrf,
     LLA,
+}
+
+impl fmt::Display for FrameType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Gcef => write!(f, "GCEF"),
+            Self::Itrf => write!(f, "ITRF"),
+            Self::LLA => write!(f, "LLA"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -40,15 +54,15 @@ pub struct LlaPosition {
 }
 
 impl LlaPosition {
-    pub fn try_new(lat: Angle, lon: Angle, alt: Length) -> Result<Self, ()> {
+    pub fn try_new(lat: Angle, lon: Angle, alt: Length) -> Result<Self, Error> {
         let lat_deg = lat.get::<degree>();
         let lon_deg = lon.get::<degree>();
 
         if !(-90.0..=90.0).contains(&lat_deg) {
-            panic!("Latitude must be between -90 and 90 degrees.");
+            return Err(Error::Frame(FrameError::LatitudeOutOfRange(lat_deg)));
         }
         if !(-180.0..=180.0).contains(&lon_deg) {
-            panic!("Longitude must be between -180 and 180 degrees.");
+            return Err(Error::Frame(FrameError::LongitudeOutOfRange(lon_deg)));
         }
 
         Ok(Self { lat, lon, alt })
@@ -88,7 +102,7 @@ impl Frame {
         })
     }
 
-    pub fn try_from_lla(time: Instant, lat: Angle, lon: Angle, alt: Length) -> Result<Self, ()> {
+    pub fn try_from_lla(time: Instant, lat: Angle, lon: Angle, alt: Length) -> Result<Self, Error> {
         let position = LlaPosition::try_new(lat, lon, alt)?;
         Ok(Self {
             time,
