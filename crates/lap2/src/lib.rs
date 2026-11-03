@@ -1,3 +1,4 @@
+pub mod formats;
 pub mod frames;
 pub mod error;
 pub use error::Error;
