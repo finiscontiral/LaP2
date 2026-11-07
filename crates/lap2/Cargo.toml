@@ -8,3 +8,4 @@ nalgebra = "0.35.0"
 satkit = "0.24.0"
 thiserror = "2.0.21"
 uom = "0.38.0"
+zerocopy = { version = "0.8.63", features = ["derive"] }

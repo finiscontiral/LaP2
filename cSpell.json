@@ -4,6 +4,7 @@
     "words": [
         "nalgebra",
         "satkit",
-        "thiserror"
+        "thiserror",
+        "zerocopy"
     ]
 }
