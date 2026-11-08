@@ -241,3 +241,146 @@ fn check_any_char(bytes: &[u8], indices: &[usize], expected_chars: &[u8]) -> Res
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test TLE sample.
+    /// Source [SPACE-TRACK.ORG](https://www.space-track.org/documentation#/tle)
+    /// TLE data listed in the Basic Info section.
+    const SAMPLE_TLE_NAME: &str = "ISS (ZARYA)";
+    const SAMPLE_TLE_LINE1: &[u8; 69] =
+        b"1 25544U 98067A   04236.56031392  .00020137  00000-0  16538-3 0  9993";
+    const SAMPLE_TLE_LINE2: &[u8; 69] =
+        b"2 25544  51.6335 344.7760 0007976 126.2523 325.9359 15.70406856328906";
+
+    mod line1 {
+        use super::{SAMPLE_TLE_LINE1, TleLine1};
+
+        #[test]
+        fn test_constants() {
+            assert_eq!(TleLine1::PREFIX, b"1 ");
+            assert_eq!(TleLine1::LEN, 69);
+            assert_eq!(TleLine1::SPACE_INDICES, [8, 17, 32, 43, 52, 61, 63]);
+            assert_eq!(TleLine1::DOT_INDICES, [23, 34]);
+            assert_eq!(TleLine1::SIGN_OR_SPACE_INDICES, [33, 44, 53]);
+            assert_eq!(TleLine1::EXPONENT_INDICES, [50, 59]);
+
+            for i in TleLine1::SPACE_INDICES {
+                assert!(i < TleLine1::LEN)
+            }
+            for i in TleLine1::DOT_INDICES {
+                assert!(i < TleLine1::LEN)
+            }
+            for i in TleLine1::SIGN_OR_SPACE_INDICES {
+                assert!(i < TleLine1::LEN)
+            }
+            for i in TleLine1::EXPONENT_INDICES {
+                assert!(i < TleLine1::LEN);
+                assert!(i + 1 < TleLine1::LEN)
+            }
+        }
+
+        #[test]
+        fn test_validate() {
+            let result = TleLine1::validate(SAMPLE_TLE_LINE1);
+            assert!(
+                result.is_ok(),
+                "Failed to validate line1: {:?}",
+                result.err()
+            );
+        }
+    }
+
+    mod line2 {
+        use super::{SAMPLE_TLE_LINE2, TleLine2};
+
+        #[test]
+        fn test_constants() {
+            assert_eq!(TleLine2::PREFIX, b"2 ");
+            assert_eq!(TleLine2::LEN, 69);
+            assert_eq!(TleLine2::SPACE_INDICES, [7, 16, 25, 33, 42, 51]);
+            assert_eq!(TleLine2::DOT_INDICES, [11, 20, 37, 46, 54]);
+
+            for i in TleLine2::SPACE_INDICES {
+                assert!(i < TleLine2::LEN)
+            }
+            for i in TleLine2::DOT_INDICES {
+                assert!(i < TleLine2::LEN)
+            }
+        }
+
+        #[test]
+        fn test_validate() {
+            let result = TleLine2::validate(SAMPLE_TLE_LINE2);
+            assert!(
+                result.is_ok(),
+                "Failed to validate line2: {:?}",
+                result.err()
+            );
+        }
+    }
+
+    mod compute_tle_checksum {
+        use super::*;
+
+        #[test]
+        fn test_empty() {
+            let bytes = b"";
+            let checksum = compute_tle_checksum(bytes);
+            assert_eq!(checksum, 0);
+        }
+
+        #[test]
+        fn test_space() {
+            let bytes = b" ";
+            let checksum = compute_tle_checksum(bytes);
+            assert_eq!(checksum, 0);
+        }
+
+        #[test]
+        fn test_plus() {
+            let bytes = b"+";
+            let checksum = compute_tle_checksum(bytes);
+            assert_eq!(checksum, 0);
+        }
+
+        #[test]
+        fn test_minus() {
+            let bytes = b"-";
+            let checksum = compute_tle_checksum(bytes);
+            assert_eq!(checksum, 1);
+        }
+
+        #[test]
+        fn test_digits() {
+            let bytes = b"0123456789";
+            let checksum = compute_tle_checksum(bytes);
+            assert_eq!(checksum, 5);
+        }
+
+        #[test]
+        fn test_alphabet() {
+            let bytes = b"qwertyuiopasdfghjklzxcvbnm";
+            let checksum = compute_tle_checksum(bytes);
+            assert_eq!(checksum, 0);
+        }
+
+        #[test]
+        fn test_exact_ten() {
+            // '5' (5) + '5' (5) = 10 -> 10 % 10 = 0
+            let bytes = b"55";
+            let checksum = compute_tle_checksum(bytes);
+            assert_eq!(checksum, 0);
+        }
+
+        #[test]
+        fn test_modulo_ten() {
+            // '9' (9) + '9' (9) = 18 -> 18 % 10 = 8
+            let bytes = b"99";
+            let checksum = compute_tle_checksum(bytes);
+            assert_eq!(checksum, 8);
+        }
+    }
+}
