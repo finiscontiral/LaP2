@@ -1,5 +1,7 @@
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
+use crate::{Error, error::TleError};
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, FromBytes, IntoBytes, Immutable, KnownLayout, Unaligned,
 )]
@@ -16,18 +18,21 @@ impl TleLine {
     /// Expected length of the TLE line in bytes.
     pub const LEN: usize = 69;
 
-    pub(crate) fn validate_checksum(line: &[u8; Self::LEN]) -> Result<(), ()> {
+    pub(crate) fn validate_checksum(line: &[u8; Self::LEN]) -> Result<(), Error> {
         let last_byte = line[Self::LEN - 1];
 
         if !last_byte.is_ascii_digit() {
-            todo!()
+            return Err(TleError::UnexpectedCharacter {
+                idx: Self::LEN - 1,
+                found: last_byte as char,
+            })?;
         }
 
         let expected = last_byte - b'0';
         let actual = compute_tle_checksum(&line[..line.len() - 1]);
 
         if actual != expected {
-            todo!()
+            return Err(TleError::InvalidChecksum { expected, actual })?;
         }
 
         Ok(())
@@ -60,38 +65,68 @@ impl TleLine1 {
     /// If ‘+’ or ‘-’ is not present here, this index and the next one will be left blank.
     pub const EXPONENT_INDICES: [usize; 2] = [50, 59];
 
-    pub fn parse(source: &[u8]) -> Result<&Self, ()> {
-        let line1 = TleLine1::ref_from_bytes(source).map_err(|_| ())?;
+    pub fn parse(source: &[u8]) -> Result<&Self, Error> {
+        let line1 = TleLine1::ref_from_bytes(source).map_err(|_| TleError::InvalidLength)?;
         Self::validate(&line1.0.0)?;
 
         Ok(line1)
     }
 
-    pub(crate) fn validate(line: &[u8; Self::LEN]) -> Result<(), ()> {
+    pub(crate) fn validate(line: &[u8; Self::LEN]) -> Result<(), Error> {
         if !line.starts_with(Self::PREFIX) {
-            todo!()
+            return Err(TleError::InvalidPrefix {
+                expected: Self::PREFIX,
+            })?;
         };
 
-        check_expected_char(line, &Self::SPACE_INDICES, b' ').map_err(|idx| ())?;
+        check_expected_char(line, &Self::SPACE_INDICES, b' ').map_err(|idx| {
+            TleError::InvalidCharacter {
+                idx,
+                expected: &[' '],
+                found: line[idx] as char,
+            }
+        })?;
 
-        check_expected_char(line, &Self::DOT_INDICES, b'.').map_err(|idx| ())?;
+        check_expected_char(line, &Self::DOT_INDICES, b'.').map_err(|idx| {
+            TleError::InvalidCharacter {
+                idx,
+                expected: &['.'],
+                found: line[idx] as char,
+            }
+        })?;
 
-        check_any_char(line, &Self::SIGN_OR_SPACE_INDICES, &[b' ', b'+', b'-'])
-            .map_err(|idx| ())?;
+        check_any_char(line, &Self::SIGN_OR_SPACE_INDICES, &[b' ', b'+', b'-']).map_err(|idx| {
+            TleError::InvalidCharacter {
+                idx,
+                expected: &[' ', '+', '-'],
+                found: line[idx] as char,
+            }
+        })?;
 
         for idx in Self::EXPONENT_INDICES {
             match line[idx] {
                 b'+' | b'-' => {
                     if !line[idx + 1].is_ascii_digit() {
-                        todo!()
+                        return Err(TleError::UnexpectedCharacter {
+                            idx: idx + 1,
+                            found: line[idx + 1] as char,
+                        })?;
                     }
                 }
                 b' ' => {
                     if line[idx + 1] != b' ' {
-                        todo!()
+                        return Err(TleError::InvalidCharacter {
+                            idx: idx + 1,
+                            expected: &[' '],
+                            found: line[idx + 1] as char,
+                        })?;
                     }
                 }
-                _ => todo!(),
+                _ => Err(TleError::InvalidCharacter {
+                    idx,
+                    expected: &[' ', '+', '-'],
+                    found: line[idx] as char,
+                })?,
             }
         }
 
@@ -120,21 +155,35 @@ impl TleLine2 {
     /// Index where '.' is located.
     pub const DOT_INDICES: [usize; 5] = [11, 20, 37, 46, 54];
 
-    pub fn parse(source: &[u8]) -> Result<&Self, ()> {
-        let line2 = TleLine2::ref_from_bytes(source).map_err(|_| ())?;
+    pub fn parse(source: &[u8]) -> Result<&Self, Error> {
+        let line2 = TleLine2::ref_from_bytes(source).map_err(|_| TleError::InvalidLength)?;
         Self::validate(&line2.0.0)?;
 
         Ok(line2)
     }
 
-    pub(crate) fn validate(line: &[u8; Self::LEN]) -> Result<(), ()> {
+    pub(crate) fn validate(line: &[u8; Self::LEN]) -> Result<(), Error> {
         if !line.starts_with(Self::PREFIX) {
-            todo!()
+            return Err(TleError::InvalidPrefix {
+                expected: Self::PREFIX,
+            })?;
         };
 
-        check_expected_char(line, &Self::SPACE_INDICES, b' ').map_err(|idx| ())?;
+        check_expected_char(line, &Self::SPACE_INDICES, b' ').map_err(|idx| {
+            TleError::InvalidCharacter {
+                idx,
+                expected: &[' '],
+                found: line[idx] as char,
+            }
+        })?;
 
-        check_expected_char(line, &Self::DOT_INDICES, b'.').map_err(|idx| ())?;
+        check_expected_char(line, &Self::DOT_INDICES, b'.').map_err(|idx| {
+            TleError::InvalidCharacter {
+                idx,
+                expected: &['.'],
+                found: line[idx] as char,
+            }
+        })?;
 
         TleLine::validate_checksum(line)?;
 
